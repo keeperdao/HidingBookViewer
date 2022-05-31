@@ -87,6 +87,16 @@ def order_table():
         enableRowGroup=True,
         enableValue=True,
         enablePivot=True)
+    order_options.configure_columns(["Created", "Expiry"], type=["dateColumnFilter", "customDateTimeFormat"],
+                                    custom_format_string='MM/dd/yy h:mm a', pivot=True)
+    order_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH",
+                                     "UnfilledTakerAmt", "UnfilledTakerETH", "DiffUnfilledETH", "DiffPct"],
+                                    type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
+                                    precision=6)
+    order_options.configure_columns(["MakerAmtUSD", "TakerAmtUSD", "UnfilledTakerUSD", "DiffUnfilledUSD",
+                                     "FillPct"],
+                                    type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
+                                    precision=2)
     order_options.configure_side_bar()
     order_options.configure_selection("single")
 
@@ -146,6 +156,14 @@ def fills_table(order_hash):
             enableRowGroup=True,
             enableValue=True,
             enablePivot=True)
+        fills_options.configure_column("Timestamp", type=["dateColumnFilter", "customDateTimeFormat"],
+                                       custom_format_string='MM/dd/yy h:mm a', pivot=True)
+        fills_options.configure_columns(["MakerAmtFilled", "TakerAmtFilled"],
+                                        type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
+                                        precision=6)
+        fills_options.configure_columns(["MakerAmtFilledUSD", "TakerAmtFilledUSD", "GasUSD"],
+                                        type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
+                                        precision=2)
         fills_options.configure_side_bar()
         fills_options.configure_selection("single")
         fills_grid = AgGrid(
@@ -196,6 +214,10 @@ def auctions_table(order_hash):
             enableRowGroup=True,
             enableValue=True,
             enablePivot=True)
+        auctions_options.configure_columns(["BidAmt", "ScoreBid", "ScoreRandom", "ScoreFillAmt",
+                                            "ScoreReputation", "ScoreStake", "Score"],
+                                           type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
+                                           precision=4)
         auctions_options.configure_side_bar()
         auctions_options.configure_selection("single")
 
