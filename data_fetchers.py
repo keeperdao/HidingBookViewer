@@ -77,9 +77,11 @@ def order_table():
     order_data["UnfilledTakerUSD"] = order_data["UnfilledTakerAmt"] * raw_order_data["latest_price.usd_price_taker"]
     order_data["UnfilledTakerETH"] = order_data["UnfilledTakerAmt"] * raw_order_data["latest_price.eth_price_taker"]
     order_data["FillPct"] = raw_order_data["metaData.filledAmount_takerToken"] / raw_order_data["order.takerAmount"]
-    order_data["DiffUSD"] = order_data["MakerAmtUSD"] - order_data["TakerAmtUSD"]
-    order_data["DiffETH"] = order_data["MakerAmtETH"] - order_data["TakerAmtETH"]
-    order_data["DiffPct"] = order_data["DiffUSD"] / order_data["MakerAmtUSD"]
+    order_data["DiffUnfilledUSD"] = (order_data["MakerAmtUSD"] - order_data["TakerAmtUSD"]) * (
+            1 - order_data["FillPct"])
+    order_data["DiffUnfilledETH"] = (order_data["MakerAmtETH"] - order_data["TakerAmtETH"]) * (
+            1 - order_data["FillPct"])
+    order_data["DiffPct"] = order_data["DiffUnfilledUSD"] / (1 - order_data["FillPct"]) / order_data["MakerAmtUSD"]
     order_options = GridOptionsBuilder.from_dataframe(
         order_data,
         enableRowGroup=True,
