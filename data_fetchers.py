@@ -188,6 +188,8 @@ def auctions_table(order_hash):
         auctions_data["OutcomeReceipt"] = raw_auctions_data["outcome.outcomeReceipt"]
         auctions_data["OutcomeTxHash"] = raw_auctions_data["outcome.txHash"]
         auctions_data["BatchCnt"] = raw_auctions_data["outcome.batchCount"]
+        auctions_data["AuctionID"] = raw_auctions_data["auctionId"]
+        auctions_data["BidID"] = raw_auctions_data["bidId"]
 
         auctions_options = GridOptionsBuilder.from_dataframe(
             auctions_data,
