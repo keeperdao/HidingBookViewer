@@ -35,6 +35,84 @@ def token_table():
 
 
 @st.cache
+def historical_fetch(address):
+    token_data = token_fetch()
+
+    historical_json = requests.get(
+        "https://api.rook.fi/api/v1/trade/orderHistory?makerAddresses=" +
+        address + "&limit=100&offset=0").json()
+    historical_data = pd.json_normalize(historical_json["items"])
+
+    joined_data0 = pd.merge(historical_data, token_data,
+                            left_on="order.makerToken",
+                            right_on="address")
+    joined_data = pd.merge(joined_data0, token_data,
+                           left_on="order.takerToken",
+                           right_on="address",
+                           suffixes=("_maker", "_taker"))
+    joined_data["order.makerAmount"] = joined_data["order.makerAmount"] / (10 ** joined_data["decimals_maker"])
+    joined_data["order.takerAmount"] = joined_data["order.takerAmount"] / (10 ** joined_data["decimals_taker"])
+    joined_data["metaData.filledAmount_takerToken"] = \
+        joined_data["metaData.filledAmount_takerToken"] / (10 ** joined_data["decimals_taker"])
+    joined_data["metaData.remainingFillableAmount_takerToken"] = \
+        joined_data["metaData.remainingFillableAmount_takerToken"] / (10 ** joined_data["decimals_taker"])
+
+    return joined_data
+
+
+def historical_table(address):
+    raw_historical_data = historical_fetch(address)
+    historical_data = pd.DataFrame(raw_historical_data["metaData.orderHash"]).rename(
+        columns={"metaData.orderHash": "OrderHash"})
+    historical_data["OrderSalt"] = raw_historical_data["order.salt"]
+    historical_data["Created"] = pd.to_datetime(raw_historical_data["metaData.creation"], unit='s')
+    historical_data["Expiry"] = pd.to_datetime(raw_historical_data["order.expiry"], unit='s')
+    historical_data["MakerAmt"] = raw_historical_data["order.makerAmount"]
+    historical_data["MakerToken"] = raw_historical_data["name_maker"]
+    historical_data["MakerAmtUSD"] = raw_historical_data["order.makerAmount"] * raw_historical_data[
+        "latest_price.usd_price_maker"]
+    historical_data["MakerAmtETH"] = raw_historical_data["order.makerAmount"] * raw_historical_data[
+        "latest_price.eth_price_maker"]
+    historical_data["TakerAmt"] = raw_historical_data["order.takerAmount"]
+    historical_data["TakerToken"] = raw_historical_data["name_taker"]
+    historical_data["TakerAmtUSD"] = raw_historical_data["order.takerAmount"] * raw_historical_data[
+        "latest_price.usd_price_taker"]
+    historical_data["TakerAmtETH"] = raw_historical_data["order.takerAmount"] * raw_historical_data[
+        "latest_price.eth_price_taker"]
+    historical_data["UnfilledTakerAmt"] = raw_historical_data["metaData.remainingFillableAmount_takerToken"]
+    historical_data["UnfilledTakerUSD"] = historical_data["UnfilledTakerAmt"] * raw_historical_data[
+        "latest_price.usd_price_taker"]
+    historical_data["UnfilledTakerETH"] = historical_data["UnfilledTakerAmt"] * raw_historical_data[
+        "latest_price.eth_price_taker"]
+    historical_data["FillPct"] = raw_historical_data["metaData.filledAmount_takerToken"] / raw_historical_data[
+        "order.takerAmount"]
+
+    historical_options = GridOptionsBuilder.from_dataframe(
+        historical_data,
+        enableRowGroup=True,
+        enableValue=True,
+        enablePivot=True)
+    historical_options.configure_columns(["Created", "Expiry"], type=["dateColumnFilter", "customDateTimeFormat"],
+                                         custom_format_string='MM/dd/yy h:mm a', pivot=True)
+    historical_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH",
+                                          "UnfilledTakerAmt", "UnfilledTakerETH", ],
+                                         type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
+                                         precision=6)
+    historical_options.configure_columns(["MakerAmtUSD", "TakerAmtUSD", "UnfilledTakerUSD", "FillPct"],
+                                         type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
+                                         precision=2)
+    historical_options.configure_side_bar()
+    historical_options.configure_selection("single")
+
+    historical_grid = AgGrid(
+        historical_data,
+        enable_enterprise_modules=True,
+        gridOptions=historical_options.build(),
+        update_mode=GridUpdateMode.MODEL_CHANGED)
+    return historical_grid
+
+
+@st.cache
 def order_fetch():
     token_data = token_fetch()
 
@@ -81,7 +159,8 @@ def order_table():
             1 - order_data["FillPct"])
     order_data["DiffUnfilledETH"] = (order_data["MakerAmtETH"] - order_data["TakerAmtETH"]) * (
             1 - order_data["FillPct"])
-    order_data["DiffPct"] = order_data["DiffUnfilledUSD"] / (1 - order_data["FillPct"]) / order_data["MakerAmtUSD"]
+    order_data["DiffPct"] = order_data["MakerAmtUSD"] / order_data["TakerAmtUSD"] - 1
+
     order_options = GridOptionsBuilder.from_dataframe(
         order_data,
         enableRowGroup=True,
@@ -195,7 +274,7 @@ def auctions_table(order_hash):
         auctions_data["CreationBlock"] = raw_auctions_data["auctionCreationBlockNumber"]
         auctions_data["SettlementBlock"] = raw_auctions_data["auctionSettlementBlockNumber"]
         auctions_data["DeadlineBlock"] = raw_auctions_data["auctionDeadlineBlockNumber"]
-        auctions_data["BidAmt"] = raw_auctions_data["rook_etherUnits"]
+        auctions_data["RookBidAmt"] = raw_auctions_data["rook_etherUnits"]
         auctions_data["ScoreBid"] = raw_auctions_data["score_bid"]
         auctions_data["ScoreRandom"] = raw_auctions_data["score_random"]
         auctions_data["ScoreFillAmt"] = raw_auctions_data["score_targetFillAmount"]
