@@ -80,7 +80,33 @@ def token_table():
     return token_grid
 
 
-@st.cache
+@st.experimental_memo(ttl=60)
+def price_fetch(token_symbol, lookback_str):
+    token_data = token_fetch()
+    coingecko_id = token_data[token_data["name"] == token_symbol.upper()]["coingecko_id"].iloc[0]
+
+    if lookback_str == "1D":
+        lookback = 1
+    elif lookback_str == "1W":
+        lookback = 7
+    elif lookback_str == "1M":
+        lookback = 30
+    elif lookback_str == "1Y":
+        lookback = 365
+    else:
+        lookback = 'max'
+
+    price_params = {"coinGeckoTokenId": coingecko_id.lower(), "days": str(lookback)}
+    raw_data = requests.get("https://api.rook.fi/api/v1/trade/tokenPriceHistory", params=price_params).content
+    decoded_price_data = raw_data.decode('utf-8').replace("b'", "").replace("'", "")
+    price_data = pd.DataFrame(eval(decoded_price_data), columns=["Timestamp", "Open", "High", "Low", "Close"])
+    price_data["Timestamp"] = pd.to_datetime(price_data["Timestamp"], unit='ms')
+    price_data = price_data.drop(columns=["Open", "High", "Low"])
+
+    return price_data
+
+
+@st.experimental_memo(ttl=15 * 60)
 def historical_fetch(address):
     token_data = token_fetch()
 
