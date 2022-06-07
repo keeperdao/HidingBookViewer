@@ -5,17 +5,63 @@ from st_aggrid import AgGrid, GridOptionsBuilder
 from st_aggrid.shared import GridUpdateMode
 
 
-@st.cache
+@st.experimental_memo()
+def market_maker_fetch(start_date=None, end_date=None):
+    mm_params = {"startTimestamp": start_date, "endTimestamp ": end_date}
+    mm_json = requests.get("https://api.rook.fi/api/v1/coordinator/marketMakers", params=mm_params).json()
+    mm_data = pd.json_normalize(mm_json, meta=["name"], record_path=["makerAddresses"])
+
+    mm_data = mm_data.rename(columns={"name": "Name", mm_data.columns[0]: "Address"}).set_index("Address")
+    mm_data["Type"] = "Market Maker"
+
+    return mm_data
+
+
+@st.experimental_memo()
+def keeper_fetch(start_date=None, end_date=None):
+    keeper_params = {"startTimestamp": start_date, "endTimestamp ": end_date}
+    keeper_json = requests.get("https://api.rook.fi/api/v1/coordinator/keepers", params=keeper_params).json()
+    keeper_data = pd.json_normalize(keeper_json, meta=["name"], record_path=["activeTakerAddresses"])
+
+    keeper_data = keeper_data.rename(columns={"name": "Name", keeper_data.columns[0]: "Address"}).set_index("Address")
+    keeper_data["Type"] = "Keeper"
+
+    return keeper_data
+
+
+@st.experimental_memo()
+def known_address_fetch(start_date=None, end_date=None):
+    mm_data = market_maker_fetch(start_date, end_date)
+    keeper_data = keeper_fetch(start_date, end_date)
+    other_list = [
+        ["hellø.eth", "0x759a159d78342340ebacffb027c05910c093f430"],
+        ["3 Arrows Capital", "0xd80856b01feed61e954cd365861bd87e5d39f2e7"],
+        ["Amber", "0x5d45594917a30182ca6cfd946b969c1341127c2d"],
+        ["one-decade on OpenSea", "0x3765ea1a0d34d9c7991181824d2410fd8612f474"],
+        ["Polychain", "0xf286bb612e219916f8e9ba7200bf09ed218890cb"],
+        ["Maven11", "0xfacf46ea1e0ad2681103e726f64cfc503e9da5d6"],
+        ["Rook Test Wallet", "0x4f72f7Ca2E909BC64022466B46f12Ab328055500"]
+    ]
+    other_data = pd.DataFrame(other_list, columns=["Name", "Address"]).set_index("Address")
+    other_data["Type"] = "User"
+
+    known_data = pd.concat([mm_data, keeper_data, other_data])
+
+    return known_data
+
+
+@st.experimental_memo(ttl=24 * 60 * 60)
 def token_fetch():
     token_json = requests.get("https://api.rook.fi/api/v1/trade/tokens").json()
     token_data = pd.json_normalize(token_json)
-    token_data = token_data.drop(columns=["coingecko_id", "active", "latest_price.timestamp",
+    token_data = token_data.drop(columns=["active", "latest_price.timestamp",
                                           "trade_info.makerTokenTradeCount", "trade_info.takerTokenTradeCount",
                                           "trade_info.mostRecentTradeTimestamp"])
 
     return token_data
 
 
+@st.experimental_memo(ttl=24 * 60 * 60)
 def token_table():
     token_data = token_fetch()
     token_options = GridOptionsBuilder.from_dataframe(
@@ -60,6 +106,7 @@ def historical_fetch(address):
     return joined_data
 
 
+@st.experimental_memo(ttl=15 * 60)
 def historical_table(address):
     raw_historical_data = historical_fetch(address)
     historical_data = pd.DataFrame(raw_historical_data["metaData.orderHash"]).rename(
@@ -112,7 +159,7 @@ def historical_table(address):
     return historical_grid
 
 
-@st.cache
+@st.experimental_memo(ttl=5 * 60)
 def order_fetch():
     token_data = token_fetch()
 
@@ -136,9 +183,14 @@ def order_fetch():
     return joined_data
 
 
+# @st.experimental_memo(ttl=5 * 60)
 def order_table():
+    known_addresses = known_address_fetch()
     raw_order_data = order_fetch()
     order_data = pd.DataFrame(raw_order_data["order.maker"]).rename(columns={"order.maker": "Address"})
+    order_data["Name"] = order_data["Address"].map(known_addresses["Name"])
+    order_data["Name"][pd.isna(order_data["Name"])] = "Unknown"
+    order_data["OrderType"] = order_data["Address"].map(known_addresses["Type"])
     order_data["OrderHash"] = raw_order_data["metaData.orderHash"]
     order_data["OrderSalt"] = raw_order_data["order.salt"]
     order_data["Created"] = pd.to_datetime(raw_order_data["metaData.creation"], unit='s')
@@ -160,6 +212,11 @@ def order_table():
     order_data["DiffUnfilledETH"] = (order_data["MakerAmtETH"] - order_data["TakerAmtETH"]) * (
             1 - order_data["FillPct"])
     order_data["DiffPct"] = order_data["MakerAmtUSD"] / order_data["TakerAmtUSD"] - 1
+
+    order_data["OrderType"][(order_data["OrderType"] != "Market Maker") & (
+            (order_data["Expiry"] - order_data["Created"]).dt.total_seconds() < 180)] = "AutoFill"
+    order_data["OrderType"][(order_data["OrderType"] != "Market Maker") & (
+            (order_data["Expiry"] - order_data["Created"]).dt.total_seconds() >= 180)] = "Limit Order"
 
     order_options = GridOptionsBuilder.from_dataframe(
         order_data,
@@ -184,10 +241,10 @@ def order_table():
         enable_enterprise_modules=True,
         gridOptions=order_options.build(),
         update_mode=GridUpdateMode.MODEL_CHANGED)
-    return order_grid
+    return order_grid, order_data
 
 
-@st.cache
+@st.experimental_memo(ttl=1 * 60)
 def fills_fetch(order_hash):
     token_data = token_fetch()
 
@@ -211,6 +268,7 @@ def fills_fetch(order_hash):
     return joined_data
 
 
+# @st.experimental_memo(ttl=1 * 60)
 def fills_table(order_hash):
     raw_fills_data = fills_fetch(order_hash)
 
@@ -251,11 +309,12 @@ def fills_table(order_hash):
             gridOptions=fills_options.build(),
             update_mode=GridUpdateMode.MODEL_CHANGED)
     else:
-        fills_grid = []
-    return fills_grid
+        fills_grid = list()
+        fills_data = list()
+    return fills_grid, fills_data
 
 
-@st.cache
+@st.experimental_memo(ttl=1 * 60)
 def auctions_fetch(order_hash):
     auctions_json = requests.get("https://api.rook.fi/api/v1/coordinator/auctions?orderHashes=" + order_hash).json()
     auctions_data = pd.json_normalize(auctions_json, record_path=["bidList"],
@@ -266,6 +325,7 @@ def auctions_fetch(order_hash):
     return auctions_data
 
 
+# @st.experimental_memo(ttl=1 * 60)
 def auctions_table(order_hash):
     raw_auctions_data = auctions_fetch(order_hash)
     if len(raw_auctions_data) > 0:
@@ -306,5 +366,7 @@ def auctions_table(order_hash):
             gridOptions=auctions_options.build(),
             update_mode=GridUpdateMode.MODEL_CHANGED)
     else:
-        auctions_grid = []
-    return auctions_grid
+        auctions_grid = list()
+        auctions_data = list()
+
+    return auctions_grid, auctions_data
