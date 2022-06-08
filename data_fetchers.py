@@ -119,7 +119,6 @@ def historical_fetch(address):
     order_count = 0
     offset = 0
     while order_count >= offset:
-        st.write("Start")
         historical_params = {"makerAddresses": address, "limit": 100, "offset": offset}
         historical_json = requests.get("https://api.rook.fi/api/v1/trade/orderHistory",
                                        params=historical_params).json()
@@ -154,7 +153,7 @@ def historical_fetch(address):
     return joined_data
 
 
-@st.experimental_memo(ttl=15 * 60)
+# @st.experimental_memo(ttl=15 * 60)
 def historical_table(address):
     raw_historical_data = historical_fetch(address)
     historical_data = pd.DataFrame(raw_historical_data["metaData.orderHash"]).rename(
