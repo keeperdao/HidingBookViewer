@@ -192,12 +192,30 @@ def historical_table(address):
                                          precision=2)
     historical_options.configure_side_bar()
     historical_options.configure_selection("single")
+    historical_options.configure_column("Expiry", sort='desc')
+
+    jsFormatting = JsCode("""
+            function(params) {
+                if (params.data.FillPct >= 0.98) {
+                    return {
+                        'color': 'white',
+                        'backgroundColor': 'green'
+                    };
+                } else if (params.data.FillPct > 0) {
+                    return {
+                        'backgroundColor': 'lightgreen'
+                    };               
+                }
+            };
+            """)
+    historical_options.configure_grid_options(getRowStyle=jsFormatting)
 
     historical_grid = AgGrid(
         historical_data,
         enable_enterprise_modules=True,
         gridOptions=historical_options.build(),
-        update_mode=GridUpdateMode.MODEL_CHANGED)
+        update_mode=GridUpdateMode.MODEL_CHANGED,
+        allow_unsafe_jscode=True)
     return historical_grid
 
 
@@ -277,12 +295,30 @@ def order_table():
                                     precision=2)
     order_options.configure_side_bar()
     order_options.configure_selection("single")
+    order_options.configure_column("Created", sort='desc')
+
+    jsFormatting = JsCode("""
+            function(params) {
+                if (params.data.FillPct >= 0.98) {
+                    return {
+                        'color': 'white',
+                        'backgroundColor': 'green'
+                    };
+                } else if (params.data.FillPct > 0) {
+                    return {
+                        'backgroundColor': 'lightgreen'
+                    };               
+                }
+            };
+            """)
+    order_options.configure_grid_options(getRowStyle=jsFormatting)
 
     order_grid = AgGrid(
         order_data,
         enable_enterprise_modules=True,
         gridOptions=order_options.build(),
-        update_mode=GridUpdateMode.MODEL_CHANGED)
+        update_mode=GridUpdateMode.MODEL_CHANGED,
+        allow_unsafe_jscode=True)
     return order_grid, order_data
 
 
@@ -345,6 +381,8 @@ def fills_table(order_hash):
                                         precision=2)
         fills_options.configure_side_bar()
         fills_options.configure_selection("single")
+        fills_options.configure_column("Timestamp", sort='asc')
+
         fills_grid = AgGrid(
             fills_data,
             enable_enterprise_modules=True,
@@ -401,12 +439,31 @@ def auctions_table(order_hash):
                                            precision=4)
         auctions_options.configure_side_bar()
         auctions_options.configure_selection("single")
+        auctions_options.configure_column("CreationBlock", sort='asc')
+
+        jsFormatting = JsCode("""
+                function(params) {
+                    if (params.data.Outcome == "Filled outside valid range") {
+                        return {
+                            'color': 'white',
+                            'backgroundColor': 'red'
+                        };
+                    } else if (params.data.BatchCnt > 0) {
+                        return {
+                            'color': 'white',
+                            'backgroundColor': 'green'
+                        };
+                    }
+                };
+                """)
+        auctions_options.configure_grid_options(getRowStyle=jsFormatting)
 
         auctions_grid = AgGrid(
             auctions_data,
             enable_enterprise_modules=True,
             gridOptions=auctions_options.build(),
-            update_mode=GridUpdateMode.MODEL_CHANGED)
+            update_mode=GridUpdateMode.MODEL_CHANGED,
+            allow_unsafe_jscode=True)
     else:
         auctions_grid = list()
         auctions_data = list()
