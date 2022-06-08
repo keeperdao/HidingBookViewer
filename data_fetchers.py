@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import requests
 from st_aggrid import AgGrid, GridOptionsBuilder
-from st_aggrid.shared import GridUpdateMode
+from st_aggrid.shared import GridUpdateMode, JsCode
+import etherscan.tokens as tokens
+from datetime import datetime
 
 
 @st.experimental_memo()
@@ -22,17 +24,21 @@ def keeper_fetch(start_date=None, end_date=None):
     keeper_params = {"startTimestamp": start_date, "endTimestamp ": end_date}
     keeper_json = requests.get("https://api.rook.fi/api/v1/coordinator/keepers", params=keeper_params).json()
     keeper_data = pd.json_normalize(keeper_json, meta=["name"], record_path=["activeTakerAddresses"])
-
     keeper_data = keeper_data.rename(columns={"name": "Name", keeper_data.columns[0]: "Address"}).set_index("Address")
     keeper_data["Type"] = "Keeper"
 
-    return keeper_data
+    raw_keeper_id = pd.json_normalize(keeper_json)
+    keeper_id = pd.DataFrame(raw_keeper_id.loc[:, ["name", "identityAddress"]]).rename(
+        columns={"name": "Name", "identityAddress": "IdentityAddress"}). \
+        set_index("IdentityAddress")
+
+    return keeper_data, keeper_id
 
 
 @st.experimental_memo()
 def known_address_fetch(start_date=None, end_date=None):
     mm_data = market_maker_fetch(start_date, end_date)
-    keeper_data = keeper_fetch(start_date, end_date)
+    keeper_data, _ = keeper_fetch(start_date, end_date)
     other_list = [
         ["hellø.eth", "0x759a159d78342340ebacffb027c05910c093f430"],
         ["3 Arrows Capital", "0xd80856b01feed61e954cd365861bd87e5d39f2e7"],
@@ -50,7 +56,7 @@ def known_address_fetch(start_date=None, end_date=None):
     return known_data
 
 
-@st.experimental_memo(ttl=24 * 60 * 60)
+@st.experimental_memo(ttl=7 * 24 * 60 * 60)
 def token_fetch():
     token_json = requests.get("https://api.rook.fi/api/v1/trade/tokens").json()
     token_data = pd.json_normalize(token_json)
@@ -61,7 +67,7 @@ def token_fetch():
     return token_data
 
 
-@st.experimental_memo(ttl=24 * 60 * 60)
+@st.experimental_memo(ttl=7 * 24 * 60 * 60)
 def token_table():
     token_data = token_fetch()
     token_options = GridOptionsBuilder.from_dataframe(
@@ -80,7 +86,7 @@ def token_table():
     return token_grid
 
 
-@st.experimental_memo(ttl=60)
+@st.experimental_memo(ttl=5 * 60)
 def price_fetch(token_symbol, lookback_str):
     token_data = token_fetch()
     coingecko_id = token_data[token_data["name"] == token_symbol.upper()]["coingecko_id"].iloc[0]
@@ -168,6 +174,8 @@ def historical_table(address):
         "latest_price.usd_price_taker"]
     historical_data["TakerAmtETH"] = raw_historical_data["order.takerAmount"] * raw_historical_data[
         "latest_price.eth_price_taker"]
+    historical_data["Price"] = raw_historical_data["order.takerAmount"] / raw_historical_data[
+        "order.makerAmount"]
     historical_data["UnfilledTakerAmt"] = raw_historical_data["metaData.remainingFillableAmount_takerToken"]
     historical_data["UnfilledTakerUSD"] = historical_data["UnfilledTakerAmt"] * raw_historical_data[
         "latest_price.usd_price_taker"]
@@ -183,7 +191,7 @@ def historical_table(address):
         enablePivot=True)
     historical_options.configure_columns(["Created", "Expiry"], type=["dateColumnFilter", "customDateTimeFormat"],
                                          custom_format_string='MM/dd/yy h:mm a', pivot=True)
-    historical_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH",
+    historical_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH", "Price",
                                           "UnfilledTakerAmt", "UnfilledTakerETH", ],
                                          type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                          precision=6)
@@ -222,9 +230,20 @@ def historical_table(address):
 @st.experimental_memo(ttl=5 * 60)
 def order_fetch():
     token_data = token_fetch()
+    known_addresses = known_address_fetch()
 
     orders_json = requests.get("https://hidingbook.keeperdao.com/api/v1/orders?open=True").json()
     order_data = pd.json_normalize(orders_json["orders"])
+
+    order_data["Name"] = order_data["order.maker"].map(known_addresses["Name"])
+    order_data.loc[pd.isna(order_data["Name"]), "Name"] = "App User"
+    order_data["OrderType"] = order_data["order.maker"].map(known_addresses["Type"])
+    order_data.loc[(order_data["OrderType"] != "Market Maker") & (
+            (order_data["order.expiry"] - order_data[
+                "metaData.creation"]) < 180), "OrderType"] = "AutoFill"
+    order_data.loc[(order_data["OrderType"] != "Market Maker") & (
+            (order_data["order.expiry"] - order_data[
+                "metaData.creation"]) >= 180), "OrderType"] = "Limit Order"
 
     joined_data0 = pd.merge(order_data, token_data,
                             left_on="order.makerToken",
@@ -245,12 +264,10 @@ def order_fetch():
 
 # @st.experimental_memo(ttl=5 * 60)
 def order_table():
-    known_addresses = known_address_fetch()
     raw_order_data = order_fetch()
     order_data = pd.DataFrame(raw_order_data["order.maker"]).rename(columns={"order.maker": "Address"})
-    order_data["Name"] = order_data["Address"].map(known_addresses["Name"])
-    order_data["Name"][pd.isna(order_data["Name"])] = "Unknown"
-    order_data["OrderType"] = order_data["Address"].map(known_addresses["Type"])
+    order_data["Name"] = raw_order_data["Name"]
+    order_data["OrderType"] = raw_order_data["OrderType"]
     order_data["OrderHash"] = raw_order_data["metaData.orderHash"]
     order_data["OrderSalt"] = raw_order_data["order.salt"]
     order_data["Created"] = pd.to_datetime(raw_order_data["metaData.creation"], unit='s')
@@ -263,6 +280,7 @@ def order_table():
     order_data["TakerToken"] = raw_order_data["name_taker"]
     order_data["TakerAmtUSD"] = raw_order_data["order.takerAmount"] * raw_order_data["latest_price.usd_price_taker"]
     order_data["TakerAmtETH"] = raw_order_data["order.takerAmount"] * raw_order_data["latest_price.eth_price_taker"]
+    order_data["Price"] = raw_order_data["order.takerAmount"] / raw_order_data["order.makerAmount"]
     order_data["UnfilledTakerAmt"] = raw_order_data["metaData.remainingFillableAmount_takerToken"]
     order_data["UnfilledTakerUSD"] = order_data["UnfilledTakerAmt"] * raw_order_data["latest_price.usd_price_taker"]
     order_data["UnfilledTakerETH"] = order_data["UnfilledTakerAmt"] * raw_order_data["latest_price.eth_price_taker"]
@@ -273,11 +291,6 @@ def order_table():
             1 - order_data["FillPct"])
     order_data["DiffPct"] = order_data["MakerAmtUSD"] / order_data["TakerAmtUSD"] - 1
 
-    order_data["OrderType"][(order_data["OrderType"] != "Market Maker") & (
-            (order_data["Expiry"] - order_data["Created"]).dt.total_seconds() < 180)] = "AutoFill"
-    order_data["OrderType"][(order_data["OrderType"] != "Market Maker") & (
-            (order_data["Expiry"] - order_data["Created"]).dt.total_seconds() >= 180)] = "Limit Order"
-
     order_options = GridOptionsBuilder.from_dataframe(
         order_data,
         enableRowGroup=True,
@@ -285,7 +298,7 @@ def order_table():
         enablePivot=True)
     order_options.configure_columns(["Created", "Expiry"], type=["dateColumnFilter", "customDateTimeFormat"],
                                     custom_format_string='MM/dd/yy h:mm a', pivot=True)
-    order_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH",
+    order_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH", "Price",
                                      "UnfilledTakerAmt", "UnfilledTakerETH", "DiffUnfilledETH", "DiffPct"],
                                     type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                     precision=6)
@@ -322,13 +335,47 @@ def order_table():
     return order_grid, order_data
 
 
-@st.experimental_memo(ttl=1 * 60)
+def order_string(selected_order):
+    token_data = token_fetch()
+
+    wallet_address = selected_order["Address"]
+    etherscan_api_key = "3B4I75QEGFVMZRPR74W3DGCUSAGI5ERHW1"
+    # etherscan_api_key = st.secrets["etherscan_api_key"]
+
+    maker_token = selected_order["MakerToken"]
+    maker_contract = token_data.loc[token_data.name == maker_token, "address"].values[0]
+    maker_decimals = token_data.loc[token_data.name == maker_token, "decimals"].values[0]
+    maker_amt = "{:,.6f}".format(selected_order["MakerAmt"])
+    maker_api = tokens.Tokens(contract_address=maker_contract, api_key=etherscan_api_key)
+    maker_balance = "{:,.6f}".format(int(maker_api.get_token_balance(address=wallet_address)) / (10 ** maker_decimals))
+
+    taker_token = selected_order["TakerToken"]
+    taker_contract = token_data.loc[token_data.name == taker_token, "address"].values[0]
+    taker_decimals = token_data.loc[token_data.name == taker_token, "decimals"].values[0]
+    taker_amt = "{:,.6f}".format(selected_order["TakerAmt"])
+    taker_api = tokens.Tokens(contract_address=taker_contract, api_key=etherscan_api_key)
+    taker_balance = "{:,.6f}".format(int(taker_api.get_token_balance(address=wallet_address)) / (10 ** taker_decimals))
+
+    price = "{:,.6f}".format(selected_order["Price"])
+    fillPct = "{:,.0f}".format(selected_order["FillPct"] * 100)
+    expiry = datetime.strptime(selected_order["Expiry"], "%Y-%m-%dT%H:%M:%S")
+    created = datetime.strptime(selected_order["Created"], "%Y-%m-%dT%H:%M:%S")
+    st.write(maker_amt + " " + maker_token + " for " + taker_amt + " " + taker_token +
+             " @ " + price + " " + maker_token + "/" + taker_token)
+    st.write("Created at " + str(created) + "   |   Expiring at " + str(expiry) + " (" + fillPct + "% filled)")
+    st.write("Current " + maker_token + " balance: " + maker_balance)
+    st.write("Current " + taker_token + " balance: " + taker_balance)
+
+
+@st.experimental_memo(ttl=3 * 60)
 def fills_fetch(order_hash):
     token_data = token_fetch()
+    keeper_data, _ = keeper_fetch()
 
     fills_json = requests.get("https://api.rook.fi/api/v1/trade/orderHistory?orderHashes=" + order_hash).json()
     fills_data = pd.json_normalize(fills_json["items"], record_path=["orderFills"])
     if len(fills_data) > 0:
+        fills_data["keeper"] = fills_data["taker"].map(keeper_data["Name"])
         joined_data0 = pd.merge(fills_data, token_data,
                                 left_on="makerToken",
                                 right_on="address")
@@ -346,13 +393,13 @@ def fills_fetch(order_hash):
     return joined_data
 
 
-# @st.experimental_memo(ttl=1 * 60)
+# @st.experimental_memo(ttl=3 * 60)
 def fills_table(order_hash):
     raw_fills_data = fills_fetch(order_hash)
 
     if len(raw_fills_data) > 0:
         fills_data = pd.DataFrame(raw_fills_data["txHash"])
-        fills_data["Taker"] = raw_fills_data["taker"]
+        fills_data["Taker"] = raw_fills_data["keeper"]
         fills_data["Timestamp"] = pd.to_datetime(raw_fills_data["timestamp"], unit='s')
         fills_data["BlockNum"] = raw_fills_data["blockNumber"]
         fills_data["MakerAmtFilled"] = raw_fills_data["makerTokenFilledAmount"]
@@ -394,23 +441,37 @@ def fills_table(order_hash):
     return fills_grid, fills_data
 
 
-@st.experimental_memo(ttl=1 * 60)
+@st.experimental_memo(ttl=3 * 60)
 def auctions_fetch(order_hash):
+    _, keeper_id = keeper_fetch()
+
     auctions_json = requests.get("https://api.rook.fi/api/v1/coordinator/auctions?orderHashes=" + order_hash).json()
     auctions_data = pd.json_normalize(auctions_json, record_path=["bidList"],
                                       meta=["auctionCreationBlockNumber",
                                             "auctionSettlementBlockNumber",
                                             "auctionDeadlineBlockNumber"])
+    if len(auctions_data) > 0:
+        auctions_data["Keeper"] = auctions_data["keeperIdentityAddress"].map(keeper_id["Name"])
 
     return auctions_data
 
 
-# @st.experimental_memo(ttl=1 * 60)
+# @st.experimental_memo(ttl=3 * 60)
 def auctions_table(order_hash):
     raw_auctions_data = auctions_fetch(order_hash)
+
+    auction_outcomes_list = [
+        ["Unfilled", 0],
+        ["Exact fill", 1],
+        ["Filled above target amount", 2],
+        ["Filled within threshold", 3],
+        ["Filled below threshold", 4],
+        ["Filled outside valid range", 5]
+    ]
+    auction_outcomes = pd.DataFrame(auction_outcomes_list, columns=["Outcome", "Value"]).set_index("Value")
+
     if len(raw_auctions_data) > 0:
-        auctions_data = pd.DataFrame(raw_auctions_data["keeperIdentityAddress"]).rename(
-            columns={"keeperIdentityAddress": "Keeper"})
+        auctions_data = pd.DataFrame(raw_auctions_data["Keeper"])
         auctions_data["CreationBlock"] = raw_auctions_data["auctionCreationBlockNumber"]
         auctions_data["SettlementBlock"] = raw_auctions_data["auctionSettlementBlockNumber"]
         auctions_data["DeadlineBlock"] = raw_auctions_data["auctionDeadlineBlockNumber"]
@@ -421,7 +482,7 @@ def auctions_table(order_hash):
         auctions_data["ScoreReputation"] = raw_auctions_data["score_reputation"]
         auctions_data["ScoreStake"] = raw_auctions_data["score_stake"]
         auctions_data["Score"] = raw_auctions_data["score"]
-        auctions_data["OutcomeValue"] = raw_auctions_data["outcome.outcomeValue"]
+        auctions_data["Outcome"] = raw_auctions_data["outcome.outcomeValue"].map(auction_outcomes["Outcome"])
         auctions_data["OutcomeReceipt"] = raw_auctions_data["outcome.outcomeReceipt"]
         auctions_data["OutcomeTxHash"] = raw_auctions_data["outcome.txHash"]
         auctions_data["BatchCnt"] = raw_auctions_data["outcome.batchCount"]
