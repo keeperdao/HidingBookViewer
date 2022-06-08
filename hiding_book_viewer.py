@@ -15,7 +15,7 @@ if __name__ == '__main__':
         if len(order_grid) == 0:
             st.stop()
     else:
-        st.subheader("Past Orders (100 most recent)")
+        st.subheader("Past Orders")
         wallet_address = st.text_input("Wallet Address", "")
 
         if len(wallet_address) > 0:

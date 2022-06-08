@@ -110,10 +110,26 @@ def price_fetch(token_symbol, lookback_str):
 def historical_fetch(address):
     token_data = token_fetch()
 
-    historical_json = requests.get(
-        "https://api.rook.fi/api/v1/trade/orderHistory?makerAddresses=" +
-        address + "&limit=100&offset=0").json()
-    historical_data = pd.json_normalize(historical_json["items"])
+    order_count = 0
+    offset = 0
+    while order_count >= offset:
+        st.write("Start")
+        historical_params = {"makerAddresses": address, "limit": 100, "offset": offset}
+        historical_json = requests.get("https://api.rook.fi/api/v1/trade/orderHistory",
+                                       params=historical_params).json()
+
+        if offset == 0:
+            historical_data = pd.json_normalize(historical_json["items"])
+        else:
+            historical_data = pd.concat([historical_data, pd.json_normalize(historical_json["items"])])
+
+        offset += 100
+        order_count = len(historical_data)
+
+    # historical_json = requests.get(
+    #     "https://api.rook.fi/api/v1/trade/orderHistory?makerAddresses=" +
+    #     address + "&limit=100&offset=0").json()
+    # historical_data = pd.json_normalize(historical_json["items"])
 
     joined_data0 = pd.merge(historical_data, token_data,
                             left_on="order.makerToken",
