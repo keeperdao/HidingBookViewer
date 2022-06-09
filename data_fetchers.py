@@ -507,7 +507,7 @@ def auctions_table(order_hash):
                             'color': 'white',
                             'backgroundColor': 'red'
                         };
-                    } else if (params.data.BatchCnt > 0) {
+                    } else if (params.data.Outcome != "Unfilled" && params.data.Outcome != "nan") {
                         return {
                             'color': 'white',
                             'backgroundColor': 'green'
