@@ -1,4 +1,7 @@
-streamlit==1.10.0
+streamlit~=1.10.0
 streamlit-aggrid~=0.2.3.post2
 pandas~=1.4.2
-requests==2.27.1
+requests~=2.27.1
+altair~=4.2.0
+etherscan~=0.3.0
+py-etherscan-api~=0.8.0
