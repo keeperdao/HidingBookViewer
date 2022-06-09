@@ -39,7 +39,7 @@ def price_chart(token1, token2, lookback, target, creation, expiry):
             y="Close",
             opacity=alt.condition(hover, alt.value(0.3), alt.value(0)),
             tooltip=[
-                alt.Tooltip("Timestamp", title="Date"),
+                alt.Tooltip("Timestamp", title="Date", format="%m/%d/%y %H:%m"),
                 alt.Tooltip("Close", title="Price (" + token1 + "/" + token2 + ")"),
             ],
         )
