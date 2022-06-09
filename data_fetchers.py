@@ -338,8 +338,7 @@ def order_string(selected_order):
     token_data = token_fetch()
 
     wallet_address = selected_order["Address"]
-    etherscan_api_key = "3B4I75QEGFVMZRPR74W3DGCUSAGI5ERHW1"
-    # etherscan_api_key = st.secrets["etherscan_api_key"]
+    etherscan_api_key = st.secrets["etherscan_api_key"]
 
     maker_token = selected_order["MakerToken"]
     maker_contract = token_data.loc[token_data.name == maker_token, "address"].values[0]
