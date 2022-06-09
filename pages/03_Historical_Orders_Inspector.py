@@ -23,17 +23,22 @@ if order_grid["selected_rows"]:
     st.json(order_grid["selected_rows"][0])
 
     st.subheader("Auctions")
-    auctions_table(order_grid["selected_rows"][0]["OrderHash"])
-    st.subheader("Order Fills")
-    fills_grid = fills_table(order_grid["selected_rows"][0]["OrderHash"])
+    auctions_grid, _ = auctions_table(order_grid["selected_rows"][0]["OrderHash"])
+    if len(auctions_grid) > 0:
+        if auctions_grid["selected_rows"]:
+            st.caption("Selected auction:")
+            st.write(auctions_grid[0]["selected_rows"][0])
 
-    if len(fills_grid[0]) > 0:
-        if fills_grid[0]["selected_rows"]:
+    st.subheader("Order Fills")
+    fills_grid, _ = fills_table(order_grid["selected_rows"][0]["OrderHash"])
+
+    if len(fills_grid) > 0:
+        if fills_grid["selected_rows"]:
             st.caption("Selected fill:")
-            st.write(fills_grid[0]["selected_rows"][0])
-            st.markdown("[Etherscan (Transaction)](https://etherscan.io/tx/" + fills_grid[0]["selected_rows"][0][
+            st.write(fills_grid["selected_rows"][0])
+            st.markdown("[Etherscan (Transaction)](https://etherscan.io/tx/" + fills_grid["selected_rows"][0][
                 "txHash"] + ")",
                         unsafe_allow_html=True)
             st.markdown(
-                "[EigenPhi](https://eigenphi.io/ethereum/tx/" + fills_grid[0]["selected_rows"][0]["txHash"] + ")",
+                "[EigenPhi](https://eigenphi.io/ethereum/tx/" + fills_grid["selected_rows"][0]["txHash"] + ")",
                 unsafe_allow_html=True)
