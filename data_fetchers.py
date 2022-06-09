@@ -222,6 +222,7 @@ def historical_table(address):
         enable_enterprise_modules=True,
         gridOptions=historical_options.build(),
         update_mode=GridUpdateMode.MODEL_CHANGED,
+        data_return_mode="FILTERED",
         allow_unsafe_jscode=True)
     return historical_grid
 
@@ -330,6 +331,7 @@ def order_table():
         enable_enterprise_modules=True,
         gridOptions=order_options.build(),
         update_mode=GridUpdateMode.MODEL_CHANGED,
+        data_return_mode="FILTERED",
         allow_unsafe_jscode=True)
     return order_grid, order_data
 
@@ -432,7 +434,8 @@ def fills_table(order_hash):
             fills_data,
             enable_enterprise_modules=True,
             gridOptions=fills_options.build(),
-            update_mode=GridUpdateMode.MODEL_CHANGED)
+            update_mode=GridUpdateMode.MODEL_CHANGED,
+            data_return_mode="FILTERED", )
     else:
         fills_grid = list()
         fills_data = list()
@@ -522,6 +525,7 @@ def auctions_table(order_hash):
             enable_enterprise_modules=True,
             gridOptions=auctions_options.build(),
             update_mode=GridUpdateMode.MODEL_CHANGED,
+            data_return_mode="FILTERED",
             allow_unsafe_jscode=True)
     else:
         auctions_grid = list()
