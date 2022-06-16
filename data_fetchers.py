@@ -40,10 +40,13 @@ def known_address_fetch(start_date=None, end_date=None):
     mm_data = market_maker_fetch(start_date, end_date)
     keeper_data, _ = keeper_fetch(start_date, end_date)
     other_list = [
+        ["Gigawhale", "0x6555e1cc97d3cba6eaddebbcd7ca51d75771e0b8"],
         ["hellø.eth", "0x759a159d78342340ebacffb027c05910c093f430"],
+        ["abuse.eth", "0x49a2dcc237a65cc1f412ed47e0594602f6141936"],
         ["3 Arrows Capital", "0xd80856b01feed61e954cd365861bd87e5d39f2e7"],
         ["Amber", "0x5d45594917a30182ca6cfd946b969c1341127c2d"],
         ["one-decade on OpenSea", "0x3765ea1a0d34d9c7991181824d2410fd8612f474"],
+        ["Harley87 on OpenSea", "0xf6853c77a2452576eae5af424975a101ffc47308"],
         ["Polychain", "0xf286bb612e219916f8e9ba7200bf09ed218890cb"],
         ["Maven11", "0xfacf46ea1e0ad2681103e726f64cfc503e9da5d6"],
         ["Rook Test Wallet", "0x4f72f7Ca2E909BC64022466B46f12Ab328055500"]
@@ -130,11 +133,6 @@ def historical_fetch(address):
 
         offset += 100
         order_count = len(historical_data)
-
-    # historical_json = requests.get(
-    #     "https://api.rook.fi/api/v1/trade/orderHistory?makerAddresses=" +
-    #     address + "&limit=100&offset=0").json()
-    # historical_data = pd.json_normalize(historical_json["items"])
 
     joined_data0 = pd.merge(historical_data, token_data,
                             left_on="order.makerToken",
