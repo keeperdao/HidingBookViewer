@@ -151,7 +151,8 @@ def hiding_book_depth(order_data, mode="Token"):
         agg_data = order_data.groupby(['MakerToken', 'TakerToken']).sum().reset_index().drop(
             columns=['OrderSalt'])
 
-        combined_data = pd.DataFrame(columns={'Pair', 'MakerToken', 'TakerToken', 'SellValueUSD', 'BuyValueUSD'})
+        combined_data = pd.DataFrame(columns={'Pair', 'MakerToken', 'TakerToken', 'SellValueUSD', 'BuyValueUSD'}). \
+            rename({"SellValueUSD: MakerValueUSD", "BuyValueUSD: TakerValueUSD"})
         for _, row in agg_data.iterrows():
             pair = row['MakerToken'] + '/' + row["TakerToken"]
             inverse = row['TakerToken'] + '/' + row["MakerToken"]
@@ -159,11 +160,11 @@ def hiding_book_depth(order_data, mode="Token"):
             if value != 0:
                 matched_idx = combined_data.index[combined_data['Pair'] == inverse]
                 if len(matched_idx) > 0:
-                    combined_data.loc[matched_idx[0], 'BuyValueUSD'] = value
+                    combined_data.loc[matched_idx[0], 'TakerValueUSD'] = value
                 else:
                     combined_data = combined_data.append({'Pair': pair, 'MakerToken': row['MakerToken'],
-                                                          'TakerToken': row['TakerToken'], 'BuyValueUSD': 0,
-                                                          'SellValueUSD': value}, ignore_index=True)
+                                                          'TakerToken': row['TakerToken'], 'TakerValueUSD': 0,
+                                                          'MakerValueUSD': value}, ignore_index=True)
         combined_data.set_index('Pair')
 
         chart = alt.Chart(combined_data).mark_bar().encode(
@@ -174,7 +175,7 @@ def hiding_book_depth(order_data, mode="Token"):
             tooltip=[alt.Tooltip('Pair:N'), alt.Tooltip('Direction:N'), alt.Tooltip('ValueUSD:Q', format='$,.2f')]
         ).transform_fold(
             as_=['Direction', 'ValueUSD'],
-            fold=['BuyValueUSD', 'SellValueUSD']
+            fold=['MakerValueUSD', 'TakerValueUSD']
         )
 
     st.altair_chart(chart)
