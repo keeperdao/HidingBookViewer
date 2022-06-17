@@ -9,8 +9,9 @@ st.title('Open Orders')
 order_grid, order_data = order_table()
 if len(order_grid) == 0:
     st.stop()
-# size_pie_chart(order_grid["data"])
-# hiding_book_depth(order_grid["data"])
+size_pie_chart(order_grid["data"])
+instrument_type = st.radio("Depth Instrument Type", ("Token", "Pair"), horizontal=True)
+hiding_book_depth(order_grid["data"], instrument_type)
 
 if order_grid["selected_rows"]:
     st.caption("Selected order:")

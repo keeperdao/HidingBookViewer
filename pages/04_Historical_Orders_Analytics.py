@@ -1,7 +1,7 @@
 import streamlit as st
 
 from data_fetchers import historical_table, fills_table, auctions_table
-from charts import size_pie_chart
+from charts import size_pie_chart, order_history_chart
 
 st.set_page_config(page_title="Historical Order Viewer", page_icon="🤖")
 st.title('Historical Orders')
@@ -17,6 +17,7 @@ if len(wallet_address) > 0:
         unsafe_allow_html=True)
     order_grid = historical_table(wallet_address)
     if len(order_grid) > 0:
+        order_history_chart(order_grid["data"])
         size_pie_chart(order_grid["data"])
     else:
         st.stop()
