@@ -2,7 +2,7 @@ import streamlit as st
 
 from data_fetchers import historical_table, fills_table, auctions_table
 
-st.set_page_config(page_title="Historical Order Viewer", page_icon="🤖")
+st.set_page_config(page_title="Historical Order Viewer", page_icon="🤖", layout="wide")
 st.title('Historical Orders')
 
 wallet_address = st.text_input("Wallet Address", "")

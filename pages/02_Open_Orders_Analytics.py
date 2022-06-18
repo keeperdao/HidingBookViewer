@@ -3,7 +3,7 @@ import streamlit as st
 from data_fetchers import order_table, fills_table, auctions_table, order_string
 from charts import price_chart, size_pie_chart, hiding_book_depth
 
-st.set_page_config(page_title="Open Order Viewer", page_icon="🤖")
+st.set_page_config(page_title="Open Order Viewer", page_icon="🤖", layout="wide")
 st.title('Open Orders')
 
 order_grid, order_data = order_table()
