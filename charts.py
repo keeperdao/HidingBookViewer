@@ -1,5 +1,4 @@
 import streamlit as st
-from st_aggrid import AgGrid
 import altair as alt
 from data_fetchers import price_fetch
 from datetime import datetime
@@ -108,7 +107,7 @@ def size_pie_chart(order_data):
     pie = base.mark_arc(outerRadius=100)
     label = base.mark_text(radius=120, size=14).encode(text="size_group:Q")
 
-    st.altair_chart(pie + label, use_container_width=True)
+    st.altair_chart(pie + label)
 
     return order_data
 

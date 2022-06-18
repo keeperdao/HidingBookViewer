@@ -26,5 +26,20 @@ if len(wallet_address) > 0:
         st.stop()
 
     if len(order_grid) > 0:
-        order_history_chart(order_grid["data"])
-        size_pie_chart(order_grid["data"])
+        st.markdown('<h3 align="center">Order History</h3>', unsafe_allow_html=True)
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            st.write("")
+        with col2:
+            order_history_chart(order_grid["data"])
+        with col3:
+            st.write("")
+        st.markdown('<h3 align="center">Order Size Breakdown</h3>', unsafe_allow_html=True)
+
+        col4, col5, col6 = st.columns([1, 1, 1])
+        with col4:
+            st.write("")
+        with col5:
+            size_pie_chart(order_grid["data"])
+        with col6:
+            st.write("")
