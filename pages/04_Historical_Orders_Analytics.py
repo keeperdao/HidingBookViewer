@@ -1,6 +1,6 @@
 import streamlit as st
 
-from data_fetchers import historical_table, fills_table, auctions_table, known_address_fetch
+from data_fetchers import historical_table, known_address_fetch
 from charts import size_pie_chart, order_history_chart
 
 st.set_page_config(page_title="Historical Order Viewer", page_icon="🤖", layout="wide")
@@ -28,35 +28,3 @@ if len(wallet_address) > 0:
     if len(order_grid) > 0:
         order_history_chart(order_grid["data"])
         size_pie_chart(order_grid["data"])
-    else:
-        st.stop()
-else:
-    st.stop()
-
-if order_grid["selected_rows"]:
-    st.caption("Selected order:")
-    st.json(order_grid["selected_rows"][0])
-
-    auctions_header = st.container()
-    auctions_grid, _ = auctions_table(order_grid["selected_rows"][0]["OrderHash"])
-    if len(auctions_grid) > 0:
-        auctions_header.markdown('<h3 align="center">Auctions</h3>', unsafe_allow_html=True)
-        if auctions_grid["selected_rows"]:
-            st.caption("Selected auction:")
-            st.write(auctions_grid[0]["selected_rows"][0])
-    else:
-        st.stop()
-
-    fills_header = st.container()
-    fills_grid, _ = fills_table(order_grid["selected_rows"][0]["OrderHash"])
-    if len(fills_grid) > 0:
-        fills_header.markdown('<h3 align="center">Order Fills</h3>', unsafe_allow_html=True)
-        if fills_grid["selected_rows"]:
-            st.caption("Selected fill:")
-            st.write(fills_grid["selected_rows"][0])
-            st.markdown("[Etherscan (Transaction)](https://etherscan.io/tx/" + fills_grid["selected_rows"][0][
-                "txHash"] + ")",
-                        unsafe_allow_html=True)
-            st.markdown(
-                "[EigenPhi](https://eigenphi.io/ethereum/tx/" + fills_grid["selected_rows"][0]["txHash"] + ")",
-                unsafe_allow_html=True)
