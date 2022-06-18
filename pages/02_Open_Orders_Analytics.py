@@ -4,7 +4,7 @@ from data_fetchers import order_table, fills_table, auctions_table, order_string
 from charts import price_chart, size_pie_chart, hiding_book_depth
 
 st.set_page_config(page_title="Open Order Viewer", page_icon="🤖", layout="wide")
-st.title('Open Orders')
+st.markdown('<h1 align="center">Open Orders</h1>', unsafe_allow_html=True)
 
 order_grid, order_data = order_table()
 if len(order_grid) == 0:
@@ -35,18 +35,20 @@ if order_grid["selected_rows"]:
         unsafe_allow_html=True)
     st.json(order_grid["selected_rows"][0])
 
+    auctions_header = st.container()
     auctions_grid, _ = auctions_table(order_grid["selected_rows"][0]["OrderHash"])
     if len(auctions_grid) > 0:
-        st.subheader("Auctions")
+        auctions_header.markdown('<h3 align="center">Auctions</h3>', unsafe_allow_html=True)
         if auctions_grid["selected_rows"]:
             st.caption("Selected auction:")
             st.write(auctions_grid["selected_rows"][0])
     else:
         st.stop()
 
+    fills_header = st.container()
     fills_grid, _ = fills_table(order_grid["selected_rows"][0]["OrderHash"])
     if len(fills_grid) > 0:
-        st.subheader("Order Fills")
+        fills_header.markdown('<h3 align="center">Order Fills</h3>', unsafe_allow_html=True)
         if fills_grid["selected_rows"]:
             st.caption("Selected fill:")
             st.write(fills_grid["selected_rows"][0])
