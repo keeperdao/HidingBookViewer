@@ -10,8 +10,12 @@ order_grid, order_data = order_table()
 if len(order_grid) == 0:
     st.stop()
 size_pie_chart(order_grid["data"])
-instrument_type = st.radio("Depth Instrument Type", ("Token", "Pair"), horizontal=True)
-hiding_book_depth(order_grid["data"], instrument_type)
+
+col1, col2 = st.columns(2)
+with col1:
+    hiding_book_depth(order_grid["data"], "Token")
+with col2:
+    hiding_book_depth(order_grid["data"], "Pair")
 
 if order_grid["selected_rows"]:
     st.caption("Selected order:")
