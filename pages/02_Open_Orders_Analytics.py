@@ -35,17 +35,18 @@ if order_grid["selected_rows"]:
         unsafe_allow_html=True)
     st.json(order_grid["selected_rows"][0])
 
-    st.subheader("Auctions")
     auctions_grid, _ = auctions_table(order_grid["selected_rows"][0]["OrderHash"])
     if len(auctions_grid) > 0:
+        st.subheader("Auctions")
         if auctions_grid["selected_rows"]:
             st.caption("Selected auction:")
             st.write(auctions_grid["selected_rows"][0])
+    else:
+        st.stop()
 
-    st.subheader("Order Fills")
     fills_grid, _ = fills_table(order_grid["selected_rows"][0]["OrderHash"])
-
     if len(fills_grid) > 0:
+        st.subheader("Order Fills")
         if fills_grid["selected_rows"]:
             st.caption("Selected fill:")
             st.write(fills_grid["selected_rows"][0])

@@ -15,7 +15,12 @@ if len(wallet_address) > 0:
     st.markdown(
         "[Nansen Wallet Profiler](https://pro.nansen.ai/wallet-profiler?address=" + wallet_address + ")",
         unsafe_allow_html=True)
-    order_grid = historical_table(wallet_address)
+    try:
+        order_grid = historical_table(wallet_address)
+    except:
+        st.write("No historical orders found for this wallet.")
+        st.stop()
+
     if len(order_grid) > 0:
         order_history_chart(order_grid["data"])
         size_pie_chart(order_grid["data"])
@@ -28,17 +33,18 @@ if order_grid["selected_rows"]:
     st.caption("Selected order:")
     st.json(order_grid["selected_rows"][0])
 
-    st.subheader("Auctions")
     auctions_grid, _ = auctions_table(order_grid["selected_rows"][0]["OrderHash"])
     if len(auctions_grid) > 0:
+        st.subheader("Auctions")
         if auctions_grid["selected_rows"]:
             st.caption("Selected auction:")
             st.write(auctions_grid[0]["selected_rows"][0])
+    else:
+        st.stop()
 
-    st.subheader("Order Fills")
     fills_grid, _ = fills_table(order_grid["selected_rows"][0]["OrderHash"])
-
     if len(fills_grid) > 0:
+        st.subheader("Order Fills")
         if fills_grid["selected_rows"]:
             st.caption("Selected fill:")
             st.write(fills_grid["selected_rows"][0])
