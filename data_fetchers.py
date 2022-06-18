@@ -41,7 +41,7 @@ def known_address_fetch(start_date=None, end_date=None):
     keeper_data, _ = keeper_fetch(start_date, end_date)
     other_list = [
         ["Gigawhale", "0x6555e1cc97d3cba6eaddebbcd7ca51d75771e0b8"],
-        ["hellø.eth", "0x759a159d78342340ebacffb027c05910c093f430"],
+        ["hello.eth", "0x759a159d78342340ebacffb027c05910c093f430"],
         ["abuse.eth", "0x49a2dcc237a65cc1f412ed47e0594602f6141936"],
         ["3 Arrows Capital", "0xd80856b01feed61e954cd365861bd87e5d39f2e7"],
         ["Amber", "0x5d45594917a30182ca6cfd946b969c1341127c2d"],
@@ -153,7 +153,11 @@ def historical_fetch(address):
 
 # @st.experimental_memo(ttl=15 * 60)
 def historical_table(address):
-    raw_historical_data = historical_fetch(address)
+    try:
+        raw_historical_data = historical_fetch(address)
+    except:
+        st.write("No historical orders found for this wallet.")
+
     historical_data = pd.DataFrame(raw_historical_data["metaData.orderHash"]).rename(
         columns={"metaData.orderHash": "OrderHash"})
     historical_data["OrderSalt"] = raw_historical_data["order.salt"]
