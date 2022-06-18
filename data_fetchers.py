@@ -195,6 +195,8 @@ def historical_table(address):
     historical_options.configure_columns(["MakerAmtUSD", "TakerAmtUSD", "UnfilledTakerUSD", "FillPct"],
                                          type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                          precision=2)
+    historical_options.configure_columns(["OrderHash", "OrderSalt", "MakerAmtETH", "TakerAmtETH", "UnfilledTakerETH"],
+                                         hide=True)
     historical_options.configure_side_bar()
     historical_options.configure_selection("single")
     historical_options.configure_column("Expiry", sort='desc')
@@ -304,6 +306,9 @@ def order_table():
                                      "FillPct"],
                                     type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                     precision=2)
+    order_options.configure_columns(["Address", "OrderType", "OrderHash", "OrderSalt", "MakerAmtETH", "TakerAmtETH",
+                                     "UnfilledTakerETH", "DiffUnfilledETH"],
+                                    hide=True)
     order_options.configure_side_bar()
     order_options.configure_selection("single")
     order_options.configure_column("Created", sort='desc')
@@ -424,6 +429,7 @@ def fills_table(order_hash):
         fills_options.configure_columns(["MakerAmtFilledUSD", "TakerAmtFilledUSD", "GasUSD"],
                                         type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                         precision=2)
+        fills_options.configure_columns(["txHash", "Taker", "BlockNum", "GasUSD"], hide=True)
         fills_options.configure_side_bar()
         fills_options.configure_selection("single")
         fills_options.configure_column("Timestamp", sort='asc')
@@ -497,6 +503,9 @@ def auctions_table(order_hash):
                                             "ScoreReputation", "ScoreStake", "Score"],
                                            type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                            precision=4)
+        auctions_options.configure_columns(["SettlementBlock", "ScoreBid", "ScoreRandom", "ScoreFillAmt",
+                                            "ScoreReputation", "ScoreStake", "OutcomeReceipt", "BatchCnt",
+                                            "BidID"], hide=True)
         auctions_options.configure_side_bar()
         auctions_options.configure_selection("single")
         auctions_options.configure_column("CreationBlock", sort='asc')
