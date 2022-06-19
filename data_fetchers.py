@@ -163,6 +163,7 @@ def historical_table(address):
     historical_data["OrderSalt"] = raw_historical_data["order.salt"]
     historical_data["Created"] = pd.to_datetime(raw_historical_data["metaData.creation"], unit='s')
     historical_data["Expiry"] = pd.to_datetime(raw_historical_data["order.expiry"], unit='s')
+    historical_data["Pair"] = raw_historical_data["name_maker"] + "/" + raw_historical_data["name_taker"]
     historical_data["MakerAmt"] = raw_historical_data["order.makerAmount"]
     historical_data["MakerToken"] = raw_historical_data["name_maker"]
     historical_data["MakerAmtUSD"] = raw_historical_data["order.makerAmount"] * raw_historical_data[
@@ -241,6 +242,7 @@ def historical_table(address):
         st.markdown("*OrderSalt*: order salt associated with order")
         st.markdown("**Created**: creation date of order (in UTC)")
         st.markdown("**Expiry**: expiration date of order (in UTC)")
+        st.markdown("**Pair**: Maker/Taker pair")
         st.markdown("**MakerAmt**: quantity of maker tokens")
         st.markdown("**MakerToken**: maker token of order")
         st.markdown("**MakerAmtUSD**: estimated value of maker amount using current USD prices\
@@ -302,6 +304,7 @@ def order_table():
     order_data["OrderSalt"] = raw_order_data["order.salt"]
     order_data["Created"] = pd.to_datetime(raw_order_data["metaData.creation"], unit='s')
     order_data["Expiry"] = pd.to_datetime(raw_order_data["order.expiry"], unit='s')
+    order_data["Pair"] = raw_order_data["name_maker"] + "/" + raw_order_data["name_taker"]
     order_data["MakerAmt"] = raw_order_data["order.makerAmount"]
     order_data["MakerToken"] = raw_order_data["name_maker"]
     order_data["MakerAmtUSD"] = raw_order_data["order.makerAmount"] * raw_order_data["latest_price.usd_price_maker"]
@@ -376,12 +379,13 @@ def order_table():
             "*Italics* denote columns hidden by default. These can be unhidden using the Columns tab on the right sidebar.")
         st.markdown("")
         st.markdown("*Address*: wallet address")
-        st.markdown("**Name**: name/ENS associated with wallet (if known)")
+        st.markdown("**Name**: name associated with wallet (if known)")
         st.markdown("*OrderType*: differentiates Market Maker orders from user orders")
         st.markdown("*OrderHash*: order hash associated with order")
         st.markdown("*OrderSalt*: order salt associated with order")
         st.markdown("**Created**: creation date of order (in UTC)")
         st.markdown("**Expiry**: expiration date of order (in UTC)")
+        st.markdown("**Pair**: Maker/Taker pair")
         st.markdown("**MakerAmt**: quantity of maker tokens")
         st.markdown("**MakerToken**: maker token of order")
         st.markdown("**MakerAmtUSD**: estimated value of MakerAmt using current USD prices\
