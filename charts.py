@@ -4,7 +4,7 @@ from data_fetchers import price_fetch
 import pandas as pd
 
 
-def price_chart(token1, token2, lookback, target, creation, expiry):
+def price_chart(token1, token2, lookback, target):
     prices1 = price_fetch(token1, lookback)
     prices2 = price_fetch(token2, lookback)
 
@@ -52,6 +52,10 @@ def price_chart(token1, token2, lookback, target, creation, expiry):
     )
 
     st.altair_chart((line + points + price_target + tooltips), use_container_width=True)
+    with st.expander("Legend"):
+        st.markdown('<p style="color: SteelBlue; font-weight: bold">― Historical Price</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color: Black; font-weight: bold">― Limit Price</p>', unsafe_allow_html=True)
+        st.write('Note: all times are in UTC')
 
 
 def size_pie_chart(order_data):
@@ -74,7 +78,7 @@ def size_pie_chart(order_data):
 
     base = alt.Chart(order_stats).encode(
         theta=alt.Theta("size_group:Q", stack=True),
-        color=alt.Color("index:N")
+        color=alt.Color("index:N", legend=alt.Legend(title="Order Size"))
     )
     pie = base.mark_arc(outerRadius=100)
     label = base.mark_text(radius=120, size=14).encode(text="size_group:Q")
@@ -104,16 +108,17 @@ def hiding_book_depth(order_data, mode="Token"):
 
         unique_taker_data['TotalMakerUSD'] = 0
         order_data = pd.concat([order_data, unique_taker_data])
+        order_data = order_data.rename(columns={'TotalTakerUSD': 'Taker', 'TotalMakerUSD': 'Maker'})
 
-        chart = alt.Chart(order_data).mark_bar().encode(
-            x='ValueUSD:Q',
+        chart = alt.Chart(order_data).mark_bar(clip=True).encode(
+            x=alt.X('ValueUSD:Q', scale=alt.Scale(domain=(0, 10000000)), axis=alt.Axis(labelAngle=-45)),
             y='Direction:N',
-            color='Direction:N',
+            color=alt.Color('Direction:N', legend=None),
             row=alt.Row('Token:N'),
             tooltip=[alt.Tooltip('Token:N'), alt.Tooltip('Direction:N'), alt.Tooltip('ValueUSD:Q', format='$,.2f')]
         ).transform_fold(
             as_=['Direction', 'ValueUSD'],
-            fold=['TotalTakerUSD', 'TotalMakerUSD']
+            fold=['Taker', 'Maker']
         )
     else:
         order_data['MakerToken'] = order_data['MakerToken'].astype('category')
@@ -136,17 +141,18 @@ def hiding_book_depth(order_data, mode="Token"):
                     combined_data = combined_data.append({'Pair': pair, 'MakerToken': row['MakerToken'],
                                                           'TakerToken': row['TakerToken'], 'TakerValueUSD': 0,
                                                           'MakerValueUSD': value}, ignore_index=True)
+        combined_data = combined_data.rename(columns={'TakerValueUSD': 'Taker', 'MakerValueUSD': 'Maker'})
         combined_data.set_index('Pair')
 
-        chart = alt.Chart(combined_data).mark_bar().encode(
-            x=alt.X('ValueUSD:Q', axis=alt.Axis(labelAngle=-45)),
+        chart = alt.Chart(combined_data).mark_bar(clip=True).encode(
+            x=alt.X('ValueUSD:Q', scale=alt.Scale(domain=(0, 5000000)), axis=alt.Axis(labelAngle=-45)),
             y='Direction:N',
-            color='Direction:N',
+            color=alt.Color('Direction:N', legend=None),
             row=alt.Row('Pair:N'),
             tooltip=[alt.Tooltip('Pair:N'), alt.Tooltip('Direction:N'), alt.Tooltip('ValueUSD:Q', format='$,.2f')]
         ).transform_fold(
             as_=['Direction', 'ValueUSD'],
-            fold=['MakerValueUSD', 'TakerValueUSD']
+            fold=['Maker', 'Taker']
         )
 
     st.altair_chart(chart)
@@ -154,7 +160,7 @@ def hiding_book_depth(order_data, mode="Token"):
 
 def order_history_chart(data):
     points = alt.Chart(data).mark_circle().encode(
-        x='Expiry:T',
+        x=alt.Y('Expiry:T', axis=alt.Y(title="Expiry (UTC)")),
         y=alt.Y('MakerAmtUSD:Q'),
         color=alt.Color('FillPct:Q', scale=alt.Scale(scheme='redyellowgreen')),
         tooltip=[alt.Tooltip('Created:T', format="%m/%d/%y %H:%m"), alt.Tooltip('Expiry:T', format="%m/%d/%y %H:%m"),
@@ -163,4 +169,4 @@ def order_history_chart(data):
                  alt.Tooltip('FillPct:Q')]
     )
 
-    st.altair_chart(points)
+    st.altair_chart(points, use_container_width=True)
