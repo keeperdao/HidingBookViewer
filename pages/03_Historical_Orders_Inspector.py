@@ -8,7 +8,7 @@ st.markdown('<h1 align="center">Historical Orders</h1>', unsafe_allow_html=True)
 wallet_address = st.text_input("Wallet Address / Identifier", "")
 
 if len(wallet_address) > 0:
-    if wallet_address[:1] != "0x":
+    if wallet_address[:2] != "0x":
         known_addresses = known_address_fetch()
         wallet_address = known_addresses[known_addresses["Name"] == wallet_address].index.values[0]
         st.write("Wallet address: " + wallet_address)
