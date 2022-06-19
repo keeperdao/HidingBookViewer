@@ -1,7 +1,7 @@
 import streamlit as st
 
 from data_fetchers import order_table, fills_table, auctions_table, order_string
-from charts import price_chart, size_pie_chart
+from charts import price_chart
 
 st.set_page_config(page_title="Open Order Viewer", page_icon="🤖", layout="wide")
 st.markdown('<h1 align="center">Open Orders</h1>', unsafe_allow_html=True)
@@ -9,7 +9,6 @@ st.markdown('<h1 align="center">Open Orders</h1>', unsafe_allow_html=True)
 order_grid, order_data = order_table()
 if len(order_grid) == 0:
     st.stop()
-size_pie_chart(order_data)
 
 if order_grid["selected_rows"]:
     st.caption("Selected order:")
