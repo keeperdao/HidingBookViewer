@@ -40,10 +40,13 @@ def known_address_fetch(start_date=None, end_date=None):
     mm_data = market_maker_fetch(start_date, end_date)
     keeper_data, _ = keeper_fetch(start_date, end_date)
     other_list = [
-        ["hellø.eth", "0x759a159d78342340ebacffb027c05910c093f430"],
+        ["Gigawhale", "0x6555e1cc97d3cba6eaddebbcd7ca51d75771e0b8"],
+        ["hello.eth", "0x759a159d78342340ebacffb027c05910c093f430"],
+        ["abuse.eth", "0x49a2dcc237a65cc1f412ed47e0594602f6141936"],
         ["3 Arrows Capital", "0xd80856b01feed61e954cd365861bd87e5d39f2e7"],
         ["Amber", "0x5d45594917a30182ca6cfd946b969c1341127c2d"],
         ["one-decade on OpenSea", "0x3765ea1a0d34d9c7991181824d2410fd8612f474"],
+        ["Harley87 on OpenSea", "0xf6853c77a2452576eae5af424975a101ffc47308"],
         ["Polychain", "0xf286bb612e219916f8e9ba7200bf09ed218890cb"],
         ["Maven11", "0xfacf46ea1e0ad2681103e726f64cfc503e9da5d6"],
         ["Rook Test Wallet", "0x4f72f7Ca2E909BC64022466B46f12Ab328055500"]
@@ -131,11 +134,6 @@ def historical_fetch(address):
         offset += 100
         order_count = len(historical_data)
 
-    # historical_json = requests.get(
-    #     "https://api.rook.fi/api/v1/trade/orderHistory?makerAddresses=" +
-    #     address + "&limit=100&offset=0").json()
-    # historical_data = pd.json_normalize(historical_json["items"])
-
     joined_data0 = pd.merge(historical_data, token_data,
                             left_on="order.makerToken",
                             right_on="address")
@@ -155,12 +153,17 @@ def historical_fetch(address):
 
 # @st.experimental_memo(ttl=15 * 60)
 def historical_table(address):
-    raw_historical_data = historical_fetch(address)
+    try:
+        raw_historical_data = historical_fetch(address)
+    except:
+        st.write("No historical orders found for this wallet.")
+
     historical_data = pd.DataFrame(raw_historical_data["metaData.orderHash"]).rename(
         columns={"metaData.orderHash": "OrderHash"})
     historical_data["OrderSalt"] = raw_historical_data["order.salt"]
     historical_data["Created"] = pd.to_datetime(raw_historical_data["metaData.creation"], unit='s')
     historical_data["Expiry"] = pd.to_datetime(raw_historical_data["order.expiry"], unit='s')
+    historical_data["Pair"] = raw_historical_data["name_maker"] + "/" + raw_historical_data["name_taker"]
     historical_data["MakerAmt"] = raw_historical_data["order.makerAmount"]
     historical_data["MakerToken"] = raw_historical_data["name_maker"]
     historical_data["MakerAmtUSD"] = raw_historical_data["order.makerAmount"] * raw_historical_data[
@@ -197,6 +200,8 @@ def historical_table(address):
     historical_options.configure_columns(["MakerAmtUSD", "TakerAmtUSD", "UnfilledTakerUSD", "FillPct"],
                                          type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                          precision=2)
+    historical_options.configure_columns(["OrderHash", "OrderSalt", "MakerAmtETH", "TakerAmtETH", "UnfilledTakerETH"],
+                                         hide=True)
     historical_options.configure_side_bar()
     historical_options.configure_selection("single")
     historical_options.configure_column("Expiry", sort='desc')
@@ -222,7 +227,35 @@ def historical_table(address):
         enable_enterprise_modules=True,
         gridOptions=historical_options.build(),
         update_mode=GridUpdateMode.MODEL_CHANGED,
+        data_return_mode="FILTERED",
         allow_unsafe_jscode=True)
+
+    with st.expander("Legend"):
+        st.markdown('<span style="background-color:Green;color:White">Complete fill (at least 98% filled)</span>',
+                    unsafe_allow_html=True)
+        st.markdown('<span style="background-color:LightGreen">Partial fill (<98% filled)</span>',
+                    unsafe_allow_html=True)
+        st.write(
+            "*Italics* denote columns hidden by default. These can be unhidden using the Columns tab on the right sidebar.")
+        st.markdown("")
+        st.markdown("*OrderHash*: order hash associated with order")
+        st.markdown("*OrderSalt*: order salt associated with order")
+        st.markdown("**Created**: creation date of order (in UTC)")
+        st.markdown("**Expiry**: expiration date of order (in UTC)")
+        st.markdown("**Pair**: Maker/Taker pair")
+        st.markdown("**MakerAmt**: quantity of maker tokens")
+        st.markdown("**MakerToken**: maker token of order")
+        st.markdown("**MakerAmtUSD**: estimated value of maker amount using current USD prices\
+                    (this does **not** show USD value at time of order)")
+        st.markdown("*MakerAmtETH*: estimated value of maker amount using current ETH prices\
+                    (this does **not** show ETH value at time of order)")
+        st.markdown("**TakerAmt**, **TakerToken**, **TakerAmtUSD**, *TakerAmtETH*: same as Maker fields")
+        st.markdown("**Price**: ratio of MakerAmt and TakerAmt")
+        st.markdown("**UnfilledTakerAmt**: taker amount remaining for partial fills")
+        st.markdown("**UnfilledTakerUSD**, *UnfilledTakerETH*: value of unfilled taker amount using\
+                    current USD and ETH prices, respectively (this does **not** show value at time of order)")
+        st.markdown("**FillPct**: fill percentage (between 0 and 1)")
+
     return historical_grid
 
 
@@ -271,6 +304,7 @@ def order_table():
     order_data["OrderSalt"] = raw_order_data["order.salt"]
     order_data["Created"] = pd.to_datetime(raw_order_data["metaData.creation"], unit='s')
     order_data["Expiry"] = pd.to_datetime(raw_order_data["order.expiry"], unit='s')
+    order_data["Pair"] = raw_order_data["name_maker"] + "/" + raw_order_data["name_taker"]
     order_data["MakerAmt"] = raw_order_data["order.makerAmount"]
     order_data["MakerToken"] = raw_order_data["name_maker"]
     order_data["MakerAmtUSD"] = raw_order_data["order.makerAmount"] * raw_order_data["latest_price.usd_price_maker"]
@@ -305,6 +339,9 @@ def order_table():
                                      "FillPct"],
                                     type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                     precision=2)
+    order_options.configure_columns(["Address", "OrderType", "OrderHash", "OrderSalt", "MakerAmtETH", "TakerAmtETH",
+                                     "UnfilledTakerETH", "DiffUnfilledETH"],
+                                    hide=True)
     order_options.configure_side_bar()
     order_options.configure_selection("single")
     order_options.configure_column("Created", sort='desc')
@@ -330,7 +367,44 @@ def order_table():
         enable_enterprise_modules=True,
         gridOptions=order_options.build(),
         update_mode=GridUpdateMode.MODEL_CHANGED,
+        data_return_mode="FILTERED",
         allow_unsafe_jscode=True)
+
+    with st.expander("Legend"):
+        st.markdown('<span style="background-color:Green;color:White">Complete fill (at least 98% filled)</span>',
+                    unsafe_allow_html=True)
+        st.markdown('<span style="background-color:LightGreen">Partial fill (<98% filled)</span>',
+                    unsafe_allow_html=True)
+        st.write(
+            "*Italics* denote columns hidden by default. These can be unhidden using the Columns tab on the right sidebar.")
+        st.markdown("")
+        st.markdown("*Address*: wallet address")
+        st.markdown("**Name**: name associated with wallet (if known)")
+        st.markdown("*OrderType*: differentiates Market Maker orders from user orders")
+        st.markdown("*OrderHash*: order hash associated with order")
+        st.markdown("*OrderSalt*: order salt associated with order")
+        st.markdown("**Created**: creation date of order (in UTC)")
+        st.markdown("**Expiry**: expiration date of order (in UTC)")
+        st.markdown("**Pair**: Maker/Taker pair")
+        st.markdown("**MakerAmt**: quantity of maker tokens")
+        st.markdown("**MakerToken**: maker token of order")
+        st.markdown("**MakerAmtUSD**: estimated value of MakerAmt using current USD prices\
+                    (this does **not** show USD value at time of order)")
+        st.markdown("*MakerAmtETH*: estimated value of MakerAmt using current ETH prices\
+                    (this does **not** show ETH value at time of order)")
+        st.markdown("**TakerAmt**, **TakerToken**, **TakerAmtUSD**, *TakerAmtETH*: same as Maker fields")
+        st.markdown("**Price**: ratio of MakerAmt and TakerAmt")
+        st.markdown("**UnfilledTakerAmt**: TakerAmt remaining for partial fills")
+        st.markdown("**UnfilledTakerUSD**, *UnfilledTakerETH*: value of unfilled TakerAmt using\
+                    current USD and ETH prices, respectively (this does **not** show value at time of order)")
+        st.markdown("**FillPct**: fill percentage (between 0 and 1)")
+        st.markdown("**DiffUnfilledUSD**: difference in USD between limit price and current estimated market price\
+                    (this does **not** show USD value at time of order)")
+        st.markdown("*DiffUnfilledETH*: difference in ETH between limit price and current estimated market price\
+                    (this does **not** show ETH value at time of order)")
+        st.markdown("**DiffPct**: percentage difference between limit price and current estimated market price\
+                    (this does **not** represent prices at time of order)")
+
     return order_grid, order_data
 
 
@@ -424,6 +498,7 @@ def fills_table(order_hash):
         fills_options.configure_columns(["MakerAmtFilledUSD", "TakerAmtFilledUSD", "GasUSD"],
                                         type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                         precision=2)
+        fills_options.configure_columns(["txHash", "Taker", "BlockNum", "GasUSD"], hide=True)
         fills_options.configure_side_bar()
         fills_options.configure_selection("single")
         fills_options.configure_column("Timestamp", sort='asc')
@@ -432,7 +507,25 @@ def fills_table(order_hash):
             fills_data,
             enable_enterprise_modules=True,
             gridOptions=fills_options.build(),
-            update_mode=GridUpdateMode.MODEL_CHANGED)
+            update_mode=GridUpdateMode.MODEL_CHANGED,
+            data_return_mode="FILTERED", )
+
+        with st.expander("Legend"):
+            st.write(
+                "*Italics* denote columns hidden by default. These can be unhidden using the Columns tab on the right sidebar.")
+            st.markdown("")
+            st.markdown("*txHash*: transaction hash")
+            st.markdown("*Taker*: Keeper that filled order")
+            st.markdown("**Timestamp**: time of fill (in UTC)")
+            st.markdown("*BlockNum*: block in which order was filled")
+            st.markdown("**MakerAmtFilled**: quantity of maker tokens filled")
+            st.markdown("**MakerToken**: maker token of order")
+            st.markdown("**MakerAmtFilledUSD**: estimated value of MakerAmtFilled using current USD prices\
+                        (this does **not** show USD value at time of fill)")
+            st.markdown("**TakerToken**: taker token of order")
+            st.markdown("**TakerAmtFilledUSD**: estimated value of TakerAmtFilled using current USD prices\
+                        (this does **not** show USD value at time of fill)")
+            st.markdown("**GasUSD**: gas spent in USD at time of fill")
     else:
         fills_grid = list()
         fills_data = list()
@@ -496,6 +589,9 @@ def auctions_table(order_hash):
                                             "ScoreReputation", "ScoreStake", "Score"],
                                            type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                            precision=4)
+        auctions_options.configure_columns(["SettlementBlock", "ScoreBid", "ScoreRandom", "ScoreFillAmt",
+                                            "ScoreReputation", "ScoreStake", "OutcomeReceipt", "BatchCnt",
+                                            "BidID"], hide=True)
         auctions_options.configure_side_bar()
         auctions_options.configure_selection("single")
         auctions_options.configure_column("CreationBlock", sort='asc')
@@ -522,7 +618,29 @@ def auctions_table(order_hash):
             enable_enterprise_modules=True,
             gridOptions=auctions_options.build(),
             update_mode=GridUpdateMode.MODEL_CHANGED,
+            data_return_mode="FILTERED",
             allow_unsafe_jscode=True)
+        with st.expander("Legend"):
+            st.markdown('<span style="background-color:Green;color:White">Filled auction</span>',
+                        unsafe_allow_html=True)
+            st.write(
+                "*Italics* denote columns hidden by default. These can be unhidden using the Columns tab on the right sidebar.")
+            st.markdown("")
+            st.markdown("**Keeper**: keeper placing auction bid")
+            st.markdown("**CreationBlock**: block in which auction was created")
+            st.markdown("*SettlementBlock**: block in which auction was settled")
+            st.markdown("**DeadlineBlock**: block by which winning Keeper should fill order")
+            st.markdown("**RookBidAmt**: ROOK bid by Keeper")
+            st.markdown("*ScoreBid*: based on size of bid")
+            st.markdown("*ScoreRandom*: randomly generated component of auction score")
+            st.markdown("*ScoreReputation*: based on a Keeper's previous history")
+            st.markdown("*ScoreStake*: based on amount of ROOK currently staked by Keeper")
+            st.markdown("*Score*: overall auction score")
+            st.markdown("**Outcome**: current status of fill")
+            st.markdown("*OutcomeReceipt*: transaction hash of fill for auction (if any)")
+            st.markdown("*BatchCnt*: number of orders involved in auction (in the case of crossed auctions")
+            st.markdown("*AuctionID*: auction ID")
+            st.markdown("*BidID*: bid ID")
     else:
         auctions_grid = list()
         auctions_data = list()
