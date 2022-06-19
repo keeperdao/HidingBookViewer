@@ -10,16 +10,15 @@ order_grid, order_data = order_table()
 if len(order_grid) == 0:
     st.stop()
 
+st.write("Select a row for full details")
 if order_grid["selected_rows"]:
     st.caption("Selected order:")
 
-    lookback = st.radio("Lookback", ("1D", "1W", "1M", "1Y", "MAX"), horizontal=True)
+    lookback = st.radio("Price Lookback", ("1D", "1W", "1M", "1Y", "MAX"), horizontal=True)
     price_chart(order_grid["selected_rows"][0]["MakerToken"],
                 order_grid["selected_rows"][0]["TakerToken"],
                 lookback,
-                order_grid["selected_rows"][0]["TakerAmt"] / order_grid["selected_rows"][0]["MakerAmt"],
-                order_grid["selected_rows"][0]["Created"],
-                order_grid["selected_rows"][0]["Expiry"])
+                order_grid["selected_rows"][0]["TakerAmt"] / order_grid["selected_rows"][0]["MakerAmt"])
     order_string(order_grid["selected_rows"][0])
     st.markdown(
         "[Etherscan (Wallet)](https://etherscan.io/address/" + order_grid["selected_rows"][0][
