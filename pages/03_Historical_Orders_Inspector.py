@@ -36,7 +36,7 @@ if order_grid["selected_rows"]:
         auctions_header.markdown('<h3 align="center">Auctions</h3>', unsafe_allow_html=True)
         if auctions_grid["selected_rows"]:
             st.caption("Selected auction:")
-            st.write(auctions_grid[0]["selected_rows"][0])
+            st.write(auctions_grid["selected_rows"][0])
     else:
         st.stop()
 
