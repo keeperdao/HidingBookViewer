@@ -178,11 +178,6 @@ def historical_table(address):
         "latest_price.eth_price_taker"]
     historical_data["Price"] = raw_historical_data["order.takerAmount"] / raw_historical_data[
         "order.makerAmount"]
-    historical_data["UnfilledTakerAmt"] = raw_historical_data["metaData.remainingFillableAmount_takerToken"]
-    historical_data["UnfilledTakerUSD"] = historical_data["UnfilledTakerAmt"] * raw_historical_data[
-        "latest_price.usd_price_taker"]
-    historical_data["UnfilledTakerETH"] = historical_data["UnfilledTakerAmt"] * raw_historical_data[
-        "latest_price.eth_price_taker"]
     historical_data["FillPct"] = raw_historical_data["metaData.filledAmount_takerToken"] / raw_historical_data[
         "order.takerAmount"]
 
@@ -193,14 +188,13 @@ def historical_table(address):
         enablePivot=True)
     historical_options.configure_columns(["Created", "Expiry"], type=["dateColumnFilter", "customDateTimeFormat"],
                                          custom_format_string='MM/dd/yy h:mm a', pivot=True)
-    historical_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH", "Price",
-                                          "UnfilledTakerAmt", "UnfilledTakerETH", ],
+    historical_options.configure_columns(["MakerAmt", "MakerAmtETH", "TakerAmt", "TakerAmtETH", "Price"],
                                          type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                          precision=6)
     historical_options.configure_columns(["MakerAmtUSD", "TakerAmtUSD", "UnfilledTakerUSD", "FillPct"],
                                          type=["numericColumn", "numberColumnFilter", "customNumericFormat"],
                                          precision=2)
-    historical_options.configure_columns(["OrderHash", "OrderSalt", "MakerAmtETH", "TakerAmtETH", "UnfilledTakerETH"],
+    historical_options.configure_columns(["OrderHash", "OrderSalt", "MakerAmtETH", "TakerAmtETH"],
                                          hide=True)
     historical_options.configure_side_bar()
     historical_options.configure_selection("single")
@@ -251,9 +245,6 @@ def historical_table(address):
                     (this does **not** show ETH value at time of order)")
         st.markdown("**TakerAmt**, **TakerToken**, **TakerAmtUSD**, *TakerAmtETH*: same as Maker fields")
         st.markdown("**Price**: ratio of MakerAmt and TakerAmt")
-        st.markdown("**UnfilledTakerAmt**: taker amount remaining for partial fills")
-        st.markdown("**UnfilledTakerUSD**, *UnfilledTakerETH*: value of unfilled taker amount using\
-                    current USD and ETH prices, respectively (this does **not** show value at time of order)")
         st.markdown("**FillPct**: fill percentage (between 0 and 1)")
 
     return historical_grid
